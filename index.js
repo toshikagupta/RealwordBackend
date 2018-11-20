@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize')
 const {UserModel, UserDetailModel}=require('./model/userdetails.js')
-const{ArticleModel} =require('./model/article.js')
+const{ArticleModel, CommentModel} =require('./model/article.js')
 const{TagModel}=require('./model/tag.js')
 const db = new Sequelize({
   dialect: 'sqlite',
@@ -37,14 +37,22 @@ const db = new Sequelize({
     Article.belongsTo(User);
     User.hasMany(Article);
     
-    Article.belongsToMany(User, {as: 'favouritedBy', foreignKey: 'articleId', through: 'FavouriteArticle'});
-    User.belongsToMany(Article, {as: 'favourites', foreignKey: 'userId', through: 'FavouriteArticle'});
+    Article.belongsToMany(User, {as:'favouritedBy', foreignKey: 'articleId', through: 'FavouriteArticle'});
+    User.belongsToMany(Article, {as:'favourites', foreignKey: 'userId', through: 'FavouriteArticle'});
     
 
     const Tags = db.define('tags', TagModel);
 
     Tags.belongsToMany(Article, {foreignKey: 'tagName', through: 'ArticleTags'});
     Article.belongsToMany(Tags, {foreignKey: 'articleId', through: 'ArticleTags'}); 
+
+   const Comments = db.define('comments', CommentModel);
+
+Comments.belongsTo(User, {as: 'commentedBy', foreignKey: 'userId'});
+User.hasMany(Comments, {as: 'comment', foriegnKey: 'userId'});
+
+Comments.belongsTo(Article, {as: 'belongTo', foreignKey: 'articleId'});
+Article.hasMany(Comments, {as: 'contain', foriegnKey: 'articleId'});
    
     db.sync()
    
@@ -53,6 +61,6 @@ const db = new Sequelize({
         User,
         UserDetails,
         Article,
-        Tags
-        
+        Tags,
+        CommentModel
     }

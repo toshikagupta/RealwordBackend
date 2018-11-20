@@ -170,15 +170,17 @@ route.put('/article/:slug', async(req, res)=>{
 })
 route.get('/articles/feed', async (req, res)=>{
     try{
-    const token=req.params.token
+    const token=req.headers.token
+    console.log("token"+token)
     const user_id =await getIdFromToken(token)
+    console.log("user_id"+user_id);
     
     if(user_id)
     {
        let feedArticles=[]
        const articles = await Article.findAll();
 
-    let currentUser = await User.findByPrimar(user_id);
+    let currentUser = await User.findByPrimary(user_id);
     
     for(let i=0; i<articles.length; i++) {
         let authorId = articles[i].dataValues.userUserId;
@@ -218,6 +220,9 @@ route.get('/articles/feed', async (req, res)=>{
             feedArticles.push(article);
         }
     }
+    return res.status(200).json({
+        articles: feedArticles
+    })
 }
     else
     {
@@ -334,4 +339,66 @@ route.post('/article',async (req,res)=>{
         message: 'The requested User does not exist' })
  }
 })
+route.post('/articles/:slug/favorite', async(req, res)=>{
+    const token=req.headers.token
+    const user_id=await getIdFromToken(token)
+    const currentUser=await User.findById(user_id);
+    let slugVal=req.params.slug
+    let article=Article.findOne({
+        where:{
+            slug:slugVal
+        }
+    })
+    if(article==null||currentUser==null)
+    {
+        return res.status(500).json({
+            errors:
+            {
+                message:["Internal Server Error"]
+            }
+        })
+    }
+    console.log(article.__proto__);
+        await article.addFavouritedBy(currentUser);
+      article.favoritedCount++;
+     let updatedArticle= article.save(); 
+     let tagsList = [];
+     for(let i=0; i<tagsObjectList.length; i++) {
+         tagsList.push(tagsObjectList[i].tagName);
+     }
+
+     const authorUser = await User.findById(updatedArticle.userUserId);
+
+     const author = await UserDetail.findOne({
+         where: {
+             userId: updatedArticle.userUserId
+         }
+     });
+
+     const isFollowing = await authorUser.hasFollower(currentUser);
+
+     return res.status(200).json({
+         article: {
+             slug: updatedArticle.slug,
+             title: updatedArticle.title,
+             description: updatedArticle.description,
+             body: updatedArticle.body,
+             tagList: tagsList,
+             createdAt: updatedArticle.createdAt,
+             updatedAt: updatedArticle.updatedAt,
+             favorited: true,
+             favoritesCount: updatedArticle.favoritesCount,
+             author: {
+                 username: author.username,
+                 bio: author.bio,
+                 image: author.image,
+                 following: isFollowing
+             }
+         }
+     })
+
+
+    
+})
+
 module.exports=route
