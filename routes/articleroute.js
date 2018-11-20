@@ -13,8 +13,266 @@ route.get('/articles', async(req,res)=>{
    })
 
 })
+route.get('/tags', async(req,res)=>{
+    const tags=Tags.findAll()
+    return res.status(201).json({
+        tags
+    })
+})
 route.get('/article/:slug',async (req,res)=>{
-    const slug=req.params.slug
+    const Slug=req.params.slug
+    const article=await Article.findOne({
+        where:{
+            slug:Slug
+        }
+    })
+    
+    const articleUser=await User.findById(article.userUserId);
+   
+    const token=req.headers.token;
+    let isFollow=false;
+    const user_id=await getIdFromToken(token)
+    console.log("user_id"+user_id);
+    const userDetails=await UserDetails.findOne({
+        where:{
+            user_id:user_id
+        }
+    })
+    if(user_id!=null)
+    {
+        const user=await User.findByPrimary(user_id)
+       
+       isFollow= await articleUser.hasFollower(user);
+        console.log(isFollow)
+    }
+    if(article)
+    {
+        let tagsObjectList = await article.getTags();
+
+        let tagsList = [];
+
+        for(let i=0; i<tagsObjectList.length; i++) {
+            tagsList.push(tagsObjectList[i].tagName);
+        }
+        res.status(200).json({
+            article: {
+                slug: article.slug,
+                title: article.title,
+                description: article.description,
+                body: article.body,
+                tagList: tagsList,
+                createdAt: article.createdAt,
+                updatedAt: article.updatedAt,
+                favoritesCount: article.favoritesCount,
+                author: {
+                    username: userDetails.username,
+                    bio: userDetails.bio,
+                    image: userDetails.image,
+                    following: isFollow
+                }
+            }
+        })
+    }
+    else{
+        return res.status(404).json({
+            errors: {
+                message: "Article not found"
+            }
+        })
+    }
+})
+route.put('/article/:slug', async(req, res)=>{
+
+    let originalSlug=req.params.slug;
+    try{
+    let originalArticle=await Article.findOne({
+        where:{
+            slug: req.params.slug
+        }
+    });
+   
+    
+    const author=await UserDetails.findOne({
+        where:{
+           user_id:originalArticle.userUserId
+        }
+    }
+    )
+   
+    const token=req.headers.token;
+    
+    const user_id=await getIdFromToken(token)
+    if(token)
+    {
+        if(req.body.article.title) {
+            originalArticle.title = req.body.article.title;
+            const newSlug = await Slug(req.body.article.title);
+            originalArticle.slug = newSlug;
+        }
+        if(req.body.article.description) {
+            originalArticle.description = req.body.article.description;
+        }
+        if(req.body.article.body) {
+            originalArticle.body = req.body.article.body;
+        }
+        const updatedArticle = await originalArticle.save();
+        
+
+        let tagsObjectList = await updatedArticle.getTags();
+
+        let tagsList = [];
+
+        for(let i=0; i<tagsObjectList.length; i++) {
+            tagsList.push(tagsObjectList[i].tagName);
+        }
+
+        return res.status(200).json({
+            article: {
+                slug: updatedArticle.slug,
+                title: updatedArticle.title,
+                description: updatedArticle.description,
+                body: updatedArticle.body,
+                tagList: tagsList,
+                createdAt: updatedArticle.createdAt,
+                updatedAt: updatedArticle.updatedAt,
+                favorited: false,
+                favoritesCount: updatedArticle.favoritesCount,
+                author: {
+                    username: author.username,
+                    bio: author.bio,
+                    image: author.image,
+                    following: false
+                }
+            }
+        })
+
+    } 
+    
+    else
+    {
+        return res.status(401).json(
+            {
+              errors:{
+                message:["Unauthorized User"]
+              }
+            }
+          )
+    }
+    }
+    catch(err)
+    {
+        return res.status(500).json({
+           errors:{
+               message:["Internal Server error"]
+           } 
+        })
+    }
+})
+route.get('/articles/feed', async (req, res)=>{
+    try{
+    const token=req.params.token
+    const user_id =await getIdFromToken(token)
+    
+    if(user_id)
+    {
+       let feedArticles=[]
+       const articles = await Article.findAll();
+
+    let currentUser = await User.findByPrimar(user_id);
+    
+    for(let i=0; i<articles.length; i++) {
+        let authorId = articles[i].dataValues.userUserId;
+        let author = await User.findByPrimary(authorId);
+        let isFollowing = await author.hasFollower(currentUser);
+        if(isFollowing) {
+            let tagsObjectList = await articles[i].getTags();
+
+            let tagsList = [];
+
+            for(let i=0; i<tagsObjectList.length; i++) {
+                tagsList.push(tagsObjectList[i].tagName);
+            }
+
+            let creatorDetails = await UserDetail.findOne({
+                where: {
+                    userId: authorId
+                }
+            });
+
+            let article = {
+                slug: articles[i].slug,
+                title: articles[i].title,
+                description: articles[i].description,
+                body: articles[i].body,
+                tagList: tagsList,
+                createdAt: articles[i].createdAt,
+                updatedAt: articles[i].updatedAt,
+                favoritesCount: articles[i].favoritesCount,
+                author: {
+                    username: creatorDetails.username,
+                    bio: creatorDetails.bio,
+                    image: creatorDetails.image,
+                    following: isFollowing
+                }
+            }
+            feedArticles.push(article);
+        }
+    }
+}
+    else
+    {
+        return res.status(401).json(
+            {
+              errors:{
+                message:["Unauthorized User"]
+              }
+            }
+          )
+    }
+    }
+    catch(err)
+    {
+        return res.status(500).json({
+            errors:{
+                message:["Internal Server Error"+ err]
+            }
+        })
+    }
+})
+route.delete('/article/:slug', async(req, res)=>{
+    const token=req.headers.token
+    if(token)
+    {
+        const Slug=req.params.slug
+        const article=await Article.findOne({
+            where:{
+                slug:Slug
+            }
+        })
+        if(article)
+       { await article.destroy();
+        return res.sendStatus(202);
+       }
+       else
+       {
+        return res.status(404).json(
+            {
+              errors:{
+                message:["Article not available"]
+              }
+            }
+          )
+    
+       }
+    }else{
+        return res.status(401).json(
+            {
+              errors:{
+                message:["Unauthorized User"]
+              }
+            }
+          )
+    }
 })
 route.post('/article',async (req,res)=>{
     const token=req.headers.token
@@ -35,6 +293,10 @@ route.post('/article',async (req,res)=>{
         body:req.body.article.body,
         favoritesCount:0
     })
+    articl.setUser(user_id);
+    articl.setTags(req.body.article.tagList);
+
+   
     let profile = { username: user.username,
          bio: user.bio,
           image: user.image, 
@@ -52,7 +314,7 @@ route.post('/article',async (req,res)=>{
            console.log( req.body.article.tagList)
     tagArray = req.body.article.tagList
     for (i = 0; i < tagArray.length; i++) {
-        console.log("tag"+tagArray[i]);
+       
        await Tags.findOrCreate({
            where:{ tagName:tagArray[i]}
         })

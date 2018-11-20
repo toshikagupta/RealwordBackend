@@ -37,8 +37,9 @@ const ArticleModel = {
     },
     favoritesCount: {
         type: DT.INTEGER
-    },
-    author: DT.UUID
+    }
+    
+   
 }
 
 module.exports = {

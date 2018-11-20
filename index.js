@@ -34,8 +34,8 @@ const db = new Sequelize({
 
     const Article=db.define('article', ArticleModel);    
 
-    Article.belongsTo(User, {sourceKey: 'author'});
-    User.hasMany(Article, {foreignKey: 'author'});
+    Article.belongsTo(User);
+    User.hasMany(Article);
     
     Article.belongsToMany(User, {as: 'favouritedBy', foreignKey: 'articleId', through: 'FavouriteArticle'});
     User.belongsToMany(Article, {as: 'favourites', foreignKey: 'userId', through: 'FavouriteArticle'});
