@@ -366,6 +366,7 @@ route.post('/articles/:slug/favorite', async(req, res)=>{
      for(let i=0; i<tagsObjectList.length; i++) {
          tagsList.push(tagsObjectList[i].tagName);
      }
+     
 
      const authorUser = await User.findById(updatedArticle.userUserId);
 

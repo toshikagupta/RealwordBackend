@@ -4,10 +4,10 @@ const { User, UserDetail, Article, Comments } = require('../index');
 
 route.post('/articles/:slug/comments', async(req, res) => {
     if(req.headers.token) {
-        const currentUserId = await getIdFromToken(req.headers.token);
-        if(currentUserId.id) {
+        const userId = await getIdFromToken(req.headers.token);
+        if(userId) {
             try{
-                const currentUser = await User.findById(currentUserId.id);
+                const currentUser = await User.findById(userId);
 
                 const article = await Article.findOne({
                     where: {
@@ -24,7 +24,7 @@ route.post('/articles/:slug/comments', async(req, res) => {
 
                 const authorDetails = await UserDetail.findOne({
                     where: {
-                        userId: currentUserId.id
+                        userId: userId
                     }
                 })
 
@@ -72,15 +72,15 @@ route.get('/articles/:slug/comments', async(req, res) => {
     try{
         let currentUser = null;
         if(req.headers.token) {
-            currentUserId = await getIdFromToken(req.headers.token);
-            if(!currentUserId.id) {
+            userId = await getIdFromToken(req.headers.token);
+            if(!userId.id) {
                 return res.status(401).json({
                     errors: {
                         message: "Invalid Token"
                     }
                 })
             } else {
-                currentUser = await User.findById(currentUserId.id);
+                currentUser = await User.findById(userId);
             }
         }
 
@@ -139,8 +139,8 @@ route.get('/articles/:slug/comments', async(req, res) => {
 
 route.delete('/articles/:slug/comments/:id', async (req, res) => {
     if(req.headers.token) {
-        currentUserId = await getIdFromToken(req.headers.token);
-        if(currentUserId.id) {
+        userId = await getIdFromToken(req.headers.token);
+        if(userId) {
             try {
                 const article = await Article.findOne({
                     where: {
